@@ -39,6 +39,7 @@ class Game_Hand
     process_mentsu_configurations(@mentsu_tree)
     process_lowest_shanten_configurations
     empty_mentsu_configuration_memo
+    p @shanten
   end
 
   def empty_mentsu_configuration_memo
@@ -100,8 +101,10 @@ class Game_Hand
           outs.push(float[0])
 
           if not Hand_Util.is_honor_tile?(float[0])
+            outs.push(float[0] - 2) if Hand_Util.tile_value(float[0]) > 2
             outs.push(float[0] - 1) if Hand_Util.tile_value(float[0]) > 1
             outs.push(float[0] + 1) if Hand_Util.tile_value(float[0]) < 9
+            outs.push(float[0] + 2) if Hand_Util.tile_value(float[0]) < 8
           end
         end
       }
