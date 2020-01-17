@@ -20,8 +20,7 @@ class Game_Hand
   def initialize
     @tiles = []
     @shanten = 0
-    @mentsu_tree = {}
-    @mentsu_configurations = {}
+    @mentsu_configurations = []
     @lowest_shanten_configurations = []
   end
 
@@ -31,21 +30,15 @@ class Game_Hand
   end
 
   def parse_from_tiles(tiles)
+    $counts += 1
     @tiles = tiles.sort
     refresh
   end
 
   def refresh
-    @mentsu_tree = calc_mentsu_tree(@tiles) 
-    process_mentsu_configurations(@mentsu_tree)
+    @mentsu_configurations = calc_mentsu_tree(@tiles) 
     process_lowest_shanten_configurations
-    empty_mentsu_configuration_memo
-  end
-
-  def empty_mentsu_configuration_memo
-    # Empty the mentsu configuration memo to save memory
-    @mentsu_configuration_memo = {}
-    @lowest_depth = -1
+    p @lowest_shanten_configurations
   end
 
   #------------------------------------------------------------------------------------------------
@@ -177,123 +170,111 @@ class Game_Hand
   #-----------------------------------------------------------------------------------------------
   # * Mentsu Tree Calculation
   #-----------------------------------------------------------------------------------------------
-
+    
   def calc_mentsu_tree(hand)
-    @mentsu_configuration_memo ||= {}
-    return @mentsu_configuration_memo[hand] if @mentsu_configuration_memo[hand]
+    candidate_configurations = []
+    max_depth = -1
+    
+    queue = [[hand, [], 0]]
 
-    configurations = {}
-    return configurations if hand.empty?
+    until queue.empty?
+      hand, old_hand, depth = queue.shift
+      break if max_depth > -1 and depth >= max_depth
 
-    update_koutsu_configurations(hand, configurations)
-    update_toitsu_configurations(hand, configurations)
-    update_shuntsu_configurations(hand, configurations)
-    update_ryanmen_configurations(hand, configurations)
-    update_kanchan_configurations(hand, configurations)
-    update_tanki_configurations(hand, configurations)
+      # Koutsu
+      if hand[0] == hand[1] and hand[0] == hand[2]
+        if hand.length == 3
+          next if not old_hand.any? { |group| group.uniq.length == 1 }
 
-    @mentsu_configuration_memo[hand] = configurations
-    return configurations
-  end
+          max_depth = depth + 1
+          candidate_configurations.push(old_hand + [hand])
+        else
+          queue.push([hand[3..-1], old_hand + [hand[0...3]], depth + 1])
+        end
+      end
 
-  def update_koutsu_configurations(hand, configurations)
-    return if hand[0] != hand[1] or hand[0] != hand[2]
+      # Shuntsu
+      if Hand_Util.tile_value(hand[0]) < 8 and hand.include?(hand[0] + 1) and hand.include?(hand[0] + 2)
+        if hand.length == 3
+          next if not old_hand.any? { |group| group.uniq.length == 1 }
 
-    new_hand = hand[3..-1]
-    configurations[[hand[0]] * 3] = calc_mentsu_tree(new_hand)
-  end
+          max_depth = depth + 1
+          candidate_configurations.push(old_hand + [hand])
+        else
+          new_hand = hand[1..-1]
+          new_hand.delete_at(new_hand.index(hand[0] + 1))
+          new_hand.delete_at(new_hand.index(hand[0] + 2))
 
-  def update_toitsu_configurations(hand, configurations)
-    return if hand[0] != hand[1]
+          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 1, hand[0] + 2]], depth + 1])
+        end
+      end
 
-    new_hand = hand[2..-1]
-    configurations[[hand[0]] * 2] = calc_mentsu_tree(new_hand)
-  end
+      # Toitsu
+      if hand[0] == hand[1]
+        if hand.length == 2
+          max_depth = depth + 1
+          candidate_configurations.push(old_hand + [hand])
+        else
+          queue.push([hand[2..-1], old_hand + [hand[0...2]], depth + 1])
+        end
+      end
 
-  def update_shuntsu_configurations(hand, configurations)
-    return if Hand_Util.tile_value(hand[0]) >= 8
-    return if not hand.include?(hand[0] + 1) or not hand.include?(hand[0] + 2)
+      # Ryanmen / Penchan
+      if Hand_Util.tile_value(hand[0]) < 9 and hand.include?(hand[0] + 1)
+        if hand.length == 2
+          next if not old_hand.any? { |group| group.uniq.length == 1 }
 
-    new_hand = hand[1..-1]
-    new_hand.delete_at(new_hand.index(hand[0] + 2))
-    new_hand.delete_at(new_hand.index(hand[0] + 1))
-  
-    configurations[[hand[0], hand[0] + 1, hand[0] + 2]] = calc_mentsu_tree(new_hand)
-  end
+          max_depth = depth + 1
+          candidate_configurations.push(old_hand + [hand])
+        else
+          new_hand = hand[1..-1]
+          new_hand.delete_at(new_hand.index(hand[0] + 1))
 
-  def update_ryanmen_configurations(hand, configurations)
-    return if Hand_Util.tile_value(hand[0]) == 9
-    return if not hand.include?(hand[0] + 1)
+          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 1]], depth + 1])
+        end
+      end
 
-    new_hand = hand[1..-1]
-    new_hand.delete_at(new_hand.index(hand[0] + 1))
-  
-    configurations[[hand[0], hand[0] + 1]] = calc_mentsu_tree(new_hand)
-  end
+      # Kanchan
+      if Hand_Util.tile_value(hand[0]) < 8 and hand.include?(hand[0] + 2)
+        if hand.length == 2
+          next if not old_hand.any? { |group| group.uniq.length == 1 }
 
-  def update_kanchan_configurations(hand, configurations)
-    return if Hand_Util.tile_value(hand[0]) >= 8
-    return if not hand.include?(hand[0] + 2)
+          max_depth = depth + 1
+          candidate_configurations.push(old_hand + [hand])
+        else
+          new_hand = hand[1..-1]
+          new_hand.delete_at(new_hand.index(hand[0] + 2))
 
-    new_hand = hand[1..-1]
-    new_hand.delete_at(new_hand.index(hand[0] + 2))
-      
-    configurations[[hand[0], hand[0] + 2]] = calc_mentsu_tree(new_hand)
-  end
+          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 2]], depth + 1])
+        end
+      end
 
-  def update_tanki_configurations(hand, configurations)
-    new_hand = hand[1..-1]
-    configurations[[hand[0]]] = calc_mentsu_tree(new_hand)
+      # Tanki
+      if hand.length == 1
+        max_depth = depth + 1
+        candidate_configurations.push(old_hand + [hand])
+      else
+        queue.push([hand[1..-1], old_hand + [[hand[0]]], depth + 1])
+      end
+    end
+
+    return candidate_configurations
   end
 
   #------------------------------------------------------------------------------------------------
   # * Mentsu Configuration Processing
   #------------------------------------------------------------------------------------------------
 
-  def process_mentsu_configurations(hand, old_hand=[])
-    if hand.empty?
-      @mentsu_configurations[old_hand.length] ||= []
-      @mentsu_configurations[old_hand.length].push(old_hand)
-    end
-  
-    hand.keys.each { |mentsu|
-      process_mentsu_configurations(hand[mentsu], old_hand + [mentsu])
-    }
-  end
-
   def process_lowest_shanten_configurations
-    candidate_configurations = @mentsu_configurations[@mentsu_configurations.keys.min]
-    configuration_shanten = candidate_configurations.map { |configuration|
+    configuration_shanten = @mentsu_configurations.map { |configuration|
       get_shanten_for_configuration(configuration)
     }
 
     @shanten = configuration_shanten.min
     
     configuration_shanten.each_with_index { |shanten, i| 
-      @lowest_shanten_configurations.push(candidate_configurations[i]) if shanten == @shanten
+      @lowest_shanten_configurations.push(@mentsu_configurations[i]) if shanten == @shanten
     }
-  end
-
-  #-----------------------------------------------------------------------------------------------
-  # * Mentsu Tree Calculation
-  #-----------------------------------------------------------------------------------------------
-
-  def calc_mentsu_tree_v2(hand)
-    @mentsu_configuration_memo ||= {}
-    return @mentsu_configuration_memo[hand] if @mentsu_configuration_memo[hand]
-
-    configurations = {}
-    return configurations if hand.empty?
-
-    update_koutsu_configurations(hand, configurations)
-    update_toitsu_configurations(hand, configurations)
-    update_shuntsu_configurations(hand, configurations)
-    update_ryanmen_configurations(hand, configurations)
-    update_kanchan_configurations(hand, configurations)
-    update_tanki_configurations(hand, configurations)
-
-    @mentsu_configuration_memo[hand] = configurations
-    return configurations
   end
 
 end

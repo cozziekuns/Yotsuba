@@ -1,5 +1,7 @@
 require_relative 'game'
 
+$counts = 0
+
 #==================================================================================================
 # ** Main
 #==================================================================================================
@@ -52,37 +54,10 @@ def calc_draw_percentage(unseen_tiles, draws, waits)
   return 1 - result
 end
 
-=begin
-def calc_win_percentage(unseen_tiles, draws, waits, shanten=1)
-  p [unseen_tiles, draws, waits, shanten]
-  return calc_draw_percentage(unseen_tiles, draws, waits) if shanten == 0
-  
-  win_percentage = BigDecimal("0")
-  stay_chance = BigDecimal("1")
-
-  draws.times { |i|
-    advance_chance = calc_draw_percentage(unseen_tiles - i, 1, waits)
-
-    win_percentage += stay_chance * advance_chance * calc_win_percentage(
-      unseen_tiles - i - 1,
-      draws - i - 1,
-      3,
-      shanten - 1,
-    )
-
-    stay_chance *= (1 - advance_chance)
-  }
-
-  return win_percentage
-end
-=end
-
-# p calc_win_percentage(122 - 14, 3, 9, 1).round(8, BigDecimal::ROUND_UP).to_digits
-
 hand = Game_Hand.new
 hand.parse_from_string('246788m24668p44s')
-p hand.ukeire_outs
-# calc_win_percentage(hand, 18)
+
+__END__
 
 def create_tree(hand, unseen_tiles, draws, used_tiles)
   total_waits = hand.ukeire_outs.map { |tile| 4 - used_tiles[tile] }.sum
@@ -159,7 +134,8 @@ def generate_used_tiles(hand)
 end
 
 t = Time.now
-win_percentage = create_tree(hand, WALL_SIZE - hand.tiles.length - 15, 3, generate_used_tiles(hand))
+win_percentage = create_tree(hand, WALL_SIZE - hand.tiles.length - 12, 6, generate_used_tiles(hand))
 p win_percentage.round(6, BigDecimal::ROUND_UP).to_digits
-# p win_percentage
 p Time.now - t
+
+p $counts
