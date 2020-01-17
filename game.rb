@@ -11,6 +11,7 @@ class Game_Hand
   #------------------------------------------------------------------------------------------------
 
   attr_reader   :shanten
+  attr_reader   :tiles
 
   #------------------------------------------------------------------------------------------------
   # * Initialization Methods
@@ -25,12 +26,12 @@ class Game_Hand
   end
 
   def parse_from_string(string)
-    @tiles = Hand_Parser.parse_hand(string)
+    @tiles = Hand_Parser.parse_hand(string).sort
     refresh
   end
 
   def parse_from_tiles(tiles)
-    @tiles = tiles
+    @tiles = tiles.sort
     refresh
   end
 
@@ -39,12 +40,12 @@ class Game_Hand
     process_mentsu_configurations(@mentsu_tree)
     process_lowest_shanten_configurations
     empty_mentsu_configuration_memo
-    p @shanten
   end
 
   def empty_mentsu_configuration_memo
     # Empty the mentsu configuration memo to save memory
     @mentsu_configuration_memo = {}
+    @lowest_depth = -1
   end
 
   #------------------------------------------------------------------------------------------------
@@ -271,6 +272,28 @@ class Game_Hand
     configuration_shanten.each_with_index { |shanten, i| 
       @lowest_shanten_configurations.push(candidate_configurations[i]) if shanten == @shanten
     }
+  end
+
+  #-----------------------------------------------------------------------------------------------
+  # * Mentsu Tree Calculation
+  #-----------------------------------------------------------------------------------------------
+
+  def calc_mentsu_tree_v2(hand)
+    @mentsu_configuration_memo ||= {}
+    return @mentsu_configuration_memo[hand] if @mentsu_configuration_memo[hand]
+
+    configurations = {}
+    return configurations if hand.empty?
+
+    update_koutsu_configurations(hand, configurations)
+    update_toitsu_configurations(hand, configurations)
+    update_shuntsu_configurations(hand, configurations)
+    update_ryanmen_configurations(hand, configurations)
+    update_kanchan_configurations(hand, configurations)
+    update_tanki_configurations(hand, configurations)
+
+    @mentsu_configuration_memo[hand] = configurations
+    return configurations
   end
 
 end
