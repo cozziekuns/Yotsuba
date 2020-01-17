@@ -55,7 +55,7 @@ def calc_draw_percentage(unseen_tiles, draws, waits)
 end
 
 hand = Game_Hand.new
-hand.parse_from_string('246788m24668p44s')
+hand.parse_from_string('1289m1289p23489s')
 
 __END__
 
