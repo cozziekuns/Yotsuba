@@ -32,6 +32,9 @@ p hand.ukeire_outs
 hand = Game_Hand.new
 hand.parse_from_string('14m222333444p147s')
 p hand.ukeire_outs
+
+hand = Game_Hand.new
+hand.parse_from_string('234678m23578s22p')
 =end
 
 require 'bigdecimal'
@@ -43,7 +46,7 @@ unseen_tiles = 122
 draws_left = 12
 waits = 8
 
-def calc_draw_percentage(unseen_tiles, draws, waits)
+def calc_draw_percentage(unseen_tiles, draws, waits)  
   result = BigDecimal("1")
 
   draws.times { |i|
@@ -54,10 +57,14 @@ def calc_draw_percentage(unseen_tiles, draws, waits)
   return 1 - result
 end
 
-hand = Game_Hand.new
-hand.parse_from_string('1289m1289p23489s')
+@hand_memo = {}
 
-__END__
+hand = Game_Hand.new
+# hand.parse_from_string('234m234889p2456s')
+# hand.parse_from_string('234678m13579s22p')
+hand.parse_from_string('1289m1289p23489s')
+# hand.parse_from_string('246788m24668p44s')
+# hand.parse_from_string('223344m13579p22s')
 
 def create_tree(hand, unseen_tiles, draws, used_tiles)
   total_waits = hand.ukeire_outs.map { |tile| 4 - used_tiles[tile] }.sum
@@ -95,8 +102,14 @@ def create_tree(hand, unseen_tiles, draws, used_tiles)
       current_tiles = tiles_plus_draw.clone
       current_tiles.delete_at(current_tiles.index(tile))
 
-      current_hand = Game_Hand.new
-      current_hand.parse_from_tiles(current_tiles)
+      if @hand_memo[current_tiles]
+        current_hand = @hand_memo[current_tiles]
+      else
+        current_hand = Game_Hand.new
+        current_hand.parse_from_tiles(current_tiles)
+        @hand_memo[current_tiles] = current_hand
+      end
+
       next if current_hand.shanten >= hand.shanten
 
       (draws - 1).times { |i|
@@ -134,8 +147,8 @@ def generate_used_tiles(hand)
 end
 
 t = Time.now
-win_percentage = create_tree(hand, WALL_SIZE - hand.tiles.length - 12, 6, generate_used_tiles(hand))
-p win_percentage.round(6, BigDecimal::ROUND_UP).to_digits
+win_percentage = create_tree(hand, WALL_SIZE - hand.tiles.length - 14, 4, generate_used_tiles(hand))
+p win_percentage.round(6, BigDecimal::ROUND_HALF_UP).to_digits
 p Time.now - t
 
 p $counts

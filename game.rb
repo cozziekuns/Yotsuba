@@ -12,6 +12,7 @@ class Game_Hand
 
   attr_reader   :shanten
   attr_reader   :tiles
+  attr_reader   :lowest_shanten_configurations
 
   #------------------------------------------------------------------------------------------------
   # * Initialization Methods
@@ -38,11 +39,6 @@ class Game_Hand
   def refresh
     @mentsu_configurations = calc_mentsu_tree(@tiles) 
     process_lowest_shanten_configurations
-    @lowest_shanten_configurations.each { |config| 
-      p config 
-      p get_ukeire_outs_for_configuration(config)
-    }
-    p ukeire_outs
   end
 
   #------------------------------------------------------------------------------------------------
@@ -93,7 +89,7 @@ class Game_Hand
     floating_tiles = configuration.select { |group| group.length == 1 }
     floating_tiles.each { |float|
       # If there are not enough taatsu, any connecting will improve the shanten
-      if mentsu.length + incomplete_shapes.length < 4
+      if mentsu.length + incomplete_shapes.length - (headless ? 0 : 1) < 4
         outs.push(float[0])
 
         if not Hand_Util.is_honor_tile?(float[0])
@@ -110,7 +106,7 @@ class Game_Hand
       outs += configuration.select { |group| group.length == 1 }.map { |group| group[0] }
     end
 
-    return outs.select { |out| @tiles.count(out) < 4 }.uniq.sort
+    return outs.uniq.sort
   end
 
   def ukeire_outs
@@ -274,6 +270,9 @@ class Game_Hand
     configuration_shanten.each_with_index { |shanten, i| 
       @lowest_shanten_configurations.push(@mentsu_configurations[i]) if shanten == @shanten
     }
+
+    @lowest_shanten_configurations.each { |configuration| configuration.sort! }
+    @lowest_shanten_configurations.uniq!
   end
 
 end
