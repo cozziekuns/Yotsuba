@@ -62,9 +62,7 @@ end
 hand = Game_Hand.new
 
 t = Time.now
-1000.times {
 hand.parse_from_string('234m234889p2456s')
-}
 p Time.now - t
 
 

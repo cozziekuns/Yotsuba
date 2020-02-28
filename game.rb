@@ -123,13 +123,15 @@ class Game_Hand
     shanten = 9
 
     # Filter out the atama for shanten calculations
-    atama = configuration.select { |group| group.uniq.length == 1 }.max { |group| group.size }
+    atama_candidates = configuration.select { |group| group.uniq.length == 1 }
+    atama = atama_candidates.max_by { |group| group.length }
+    
     shanten -= atama.length
 
     configuration = configuration.clone
     configuration.delete_at(configuration.index(atama))
 
-    mentsu = configuration.sort { |b, a| b.length - a.length }[0...4]
+    mentsu = configuration.sort { |a, b| b.length - a.length }
     return shanten - mentsu.sum { |group| group.length - 1 }
   end
   
@@ -156,24 +158,17 @@ class Game_Hand
     
   def calc_mentsu_tree(hand)
     candidate_configurations = []
-    max_depth = -1
     
     queue = [[hand, []]]
 
-    iterations = 0
-
     until queue.empty?
-      iterations += 1
       hand, old_hand = queue.shift
-
-      break if max_depth > -1 and old_hand.length > max_depth
       
       if hand.empty?
         if old_hand.any? { |group| group.uniq.length == 1 }
-          max_depth = old_hand.length
+          queue.keep_if { |item| item[0].empty? }
           candidate_configurations.push(old_hand)
         end
-
         next
       end
 
@@ -193,10 +188,10 @@ class Game_Hand
         end
       end
 
-      if hand.length > 2
+      if hand.length > 1
         # Toitsu
         if hand[0] == hand[1]
-          queue.push([hand[2..-1], old_hand + [hand[0...2]]])
+          queue.push([hand[2..-1], old_hand + [hand[0..1]]])
         end
 
         # Ryanmen / Penchan

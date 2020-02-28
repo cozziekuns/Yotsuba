@@ -151,6 +151,7 @@ end
 module Hand_Util
 
   def self.tile_value(tile)
+    return 10 if is_honor_tile?(tile)
     return tile % 9 + 1
   end
 
