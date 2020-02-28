@@ -60,11 +60,15 @@ end
 @hand_memo = {}
 
 hand = Game_Hand.new
-# hand.parse_from_string('234m234889p2456s')
-# hand.parse_from_string('234678m13579s22p')
-hand.parse_from_string('1289m1289p23489s')
-# hand.parse_from_string('246788m24668p44s')
-# hand.parse_from_string('223344m13579p22s')
+
+t = Time.now
+1000.times {
+hand.parse_from_string('234m234889p2456s')
+}
+p Time.now - t
+
+
+__END__
 
 def create_tree(hand, unseen_tiles, draws, used_tiles)
   total_waits = hand.ukeire_outs.map { |tile| 4 - used_tiles[tile] }.sum

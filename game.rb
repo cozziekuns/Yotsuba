@@ -120,31 +120,19 @@ class Game_Hand
   #-----------------------------------------------------------------------------------------------
 
   def get_shanten_for_configuration(configuration)
-    tiles = configuration.flatten
-    # Configuration must be one of 1, 4, 7, 10, 13
-    shanten = (tiles.length - 1) / 3 * 2
-    mentsu = (tiles.length - 1) / 3
+    shanten = 9
 
     # Filter out the atama for shanten calculations
-    atama = configuration.find { |group| group.length == 2 and group.uniq.length == 1 }
+    atama = configuration.select { |group| group.uniq.length == 1 }.max { |group| group.size }
+    shanten -= atama.length
 
-    if atama 
-      shanten -= 1
-      configuration = configuration.clone
-      configuration.delete_at(configuration.index(atama))
-    end
+    configuration = configuration.clone
+    configuration.delete_at(configuration.index(atama))
 
-    configuration.sort { |group| group.length }.each { |group|
-      break if mentsu == 0
-      if group.length > 1
-        shanten -= group.length - 1
-        mentsu -= 1
-      end
-    }
-
-    return shanten
+    mentsu = configuration.sort { |b, a| b.length - a.length }[0...4]
+    return shanten - mentsu.sum { |group| group.length - 1 }
   end
-
+  
   def get_outs_for_shape(shape)
     # Toitsu
     if shape.uniq.length == 1
@@ -170,87 +158,66 @@ class Game_Hand
     candidate_configurations = []
     max_depth = -1
     
-    queue = [[hand, [], 0]]
+    queue = [[hand, []]]
+
+    iterations = 0
 
     until queue.empty?
-      hand, old_hand, depth = queue.shift
-      break if max_depth > -1 and depth >= max_depth
+      iterations += 1
+      hand, old_hand = queue.shift
 
-      # Koutsu
-      if hand[0] == hand[1] and hand[0] == hand[2]
-        if hand.length == 3
-          if old_hand.any? { |group| group.uniq.length == 1 }
-            max_depth = depth + 1
-            candidate_configurations.push(old_hand + [hand])
-          end
-        else
-          queue.push([hand[3..-1], old_hand + [hand[0...3]], depth + 1])
+      break if max_depth > -1 and old_hand.length > max_depth
+      
+      if hand.empty?
+        if old_hand.any? { |group| group.uniq.length == 1 }
+          max_depth = old_hand.length
+          candidate_configurations.push(old_hand)
         end
+
+        next
       end
 
-      # Shuntsu
-      if Hand_Util.tile_value(hand[0]) < 8 and hand.include?(hand[0] + 1) and hand.include?(hand[0] + 2)
-        if hand.length == 3
-          if old_hand.any? { |group| group.uniq.length == 1 }
-            max_depth = depth + 1
-            candidate_configurations.push(old_hand + [hand])
-          end
-        else
+      if hand.length > 2
+        # Koutsu
+        if hand[0] == hand[1] and hand[0] == hand[2]
+          queue.push([hand[3..-1], old_hand + [hand[0..2]]])
+        end
+
+        # Shuntsu
+        if Hand_Util.tile_value(hand[0]) < 8 and hand.include?(hand[0] + 1) and hand.include?(hand[0] + 2)
           new_hand = hand[1..-1]
           new_hand.delete_at(new_hand.index(hand[0] + 1))
           new_hand.delete_at(new_hand.index(hand[0] + 2))
 
-          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 1, hand[0] + 2]], depth + 1])
+          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 1, hand[0] + 2]]])
         end
       end
 
-      # Toitsu
-      if hand[0] == hand[1]
-        if hand.length == 2
-          max_depth = depth + 1
-          candidate_configurations.push(old_hand + [hand])
-        else
-          queue.push([hand[2..-1], old_hand + [hand[0...2]], depth + 1])
+      if hand.length > 2
+        # Toitsu
+        if hand[0] == hand[1]
+          queue.push([hand[2..-1], old_hand + [hand[0...2]]])
         end
-      end
 
-      # Ryanmen / Penchan
-      if Hand_Util.tile_value(hand[0]) < 9 and hand.include?(hand[0] + 1)
-        if hand.length == 2
-          if old_hand.any? { |group| group.uniq.length == 1 }
-            max_depth = depth + 1
-            candidate_configurations.push(old_hand + [hand])
-          end
-        else
+        # Ryanmen / Penchan
+        if Hand_Util.tile_value(hand[0]) < 9 and hand.include?(hand[0] + 1)
           new_hand = hand[1..-1]
           new_hand.delete_at(new_hand.index(hand[0] + 1))
 
-          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 1]], depth + 1])
+          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 1]]])
         end
-      end
 
-      # Kanchan
-      if Hand_Util.tile_value(hand[0]) < 8 and hand.include?(hand[0] + 2)
-        if hand.length == 2
-          if old_hand.any? { |group| group.uniq.length == 1 }
-            max_depth = depth + 1
-            candidate_configurations.push(old_hand + [hand])
-          end
-        else
+        # Kanchan
+        if Hand_Util.tile_value(hand[0]) < 8 and hand.include?(hand[0] + 2)
           new_hand = hand[1..-1]
           new_hand.delete_at(new_hand.index(hand[0] + 2))
 
-          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 2]], depth + 1])
+          queue.push([new_hand, old_hand + [[hand[0], hand[0] + 2]]])
         end
       end
-
+      
       # Tanki
-      if hand.length == 1
-        max_depth = depth + 1
-        candidate_configurations.push(old_hand + [hand])
-      else
-        queue.push([hand[1..-1], old_hand + [[hand[0]]], depth + 1])
-      end
+      queue.push([hand[1..-1], old_hand + [[hand[0]]]])
     end
 
     return candidate_configurations
@@ -270,9 +237,6 @@ class Game_Hand
     configuration_shanten.each_with_index { |shanten, i| 
       @lowest_shanten_configurations.push(@mentsu_configurations[i]) if shanten == @shanten
     }
-
-    @lowest_shanten_configurations.each { |configuration| configuration.sort! }
-    @lowest_shanten_configurations.uniq!
   end
 
 end
